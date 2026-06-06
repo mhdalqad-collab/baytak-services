@@ -91,7 +91,7 @@ export default function AppShell({ children }) {
               {customizeOpen && (
                 <div
                   id="customize-panel"
-                  className="surface-card absolute end-0 top-[calc(100%+0.7rem)] z-50 w-[min(86vw,20rem)] rounded-[1.6rem] p-4 shadow-soft"
+                  className="surface-card fixed left-1/2 top-[5.75rem] z-[60] max-h-[calc(100dvh-7rem)] w-[min(calc(100vw-2rem),20rem)] -translate-x-1/2 overflow-y-auto rounded-[1.6rem] p-4 shadow-soft"
                 >
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
