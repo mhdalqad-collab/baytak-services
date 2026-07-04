@@ -101,4 +101,12 @@ $env:PAYMENT_WEBHOOK_URL="https://bank-or-processor-endpoint"
 $env:PAYMENT_MERCHANT_ID="your-merchant-id"
 ```
 
+Until OTP credentials are configured, keep:
+
+```powershell
+$env:OTP_DELIVERY_MODE="paused"
+```
+
+In paused mode, users can register and sign in, but their accounts are marked `phoneVerified=false` until official OTP verification is enabled.
+
 Until payment credentials are configured, payment capture returns `503` and does not mark money as received.

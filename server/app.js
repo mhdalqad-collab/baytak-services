@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { addNotification, appendAudit, databaseInfo, readDb, resetDb, updateDb } from "./db.js";
 import { createRequestId, detectIssueFromPhoto, generateProviderOffers } from "./marketplace.js";
-import { canResend, createOtpCode, deliverOtp, hashOtp, otpExpiresAt, otpPolicy, verifyOtpHash } from "./otpService.js";
+import { canResend, createOtpCode, deliverOtp, hashOtp, otpExpiresAt, otpPaused, otpPolicy, verifyOtpHash } from "./otpService.js";
 import { capturePayment as captureGatewayPayment, paymentReadiness } from "./paymentService.js";
 
 const port = Number(process.env.API_PORT || 8787);
@@ -260,7 +260,7 @@ function requireSimulator(request) {
 }
 
 function readinessReport() {
-  const otpMode = process.env.OTP_DELIVERY_MODE || "mock";
+  const otpMode = process.env.OTP_DELIVERY_MODE || "paused";
   return {
     ok: true,
     mode: process.env.NODE_ENV || "development",
@@ -268,7 +268,7 @@ function readinessReport() {
     corsOrigin: CORS_ORIGIN,
     externalServices: {
       otp: {
-        status: otpMode === "mock" ? "held" : "configured",
+        status: otpMode === "paused" ? "paused" : otpMode === "mock" ? "held" : "configured",
         mode: otpMode,
         ready:
           otpMode === "mock" ||
@@ -288,8 +288,9 @@ function readinessReport() {
   };
 }
 
-function createUserFromRegistration(registration) {
+function createUserFromRegistration(registration, options = {}) {
   const role = registration.role;
+  const phoneVerified = options.phoneVerified ?? true;
   return {
     id: createUserId(role),
     name: registration.name,
@@ -298,8 +299,8 @@ function createUserFromRegistration(registration) {
     role,
     createdAt: new Date().toISOString(),
     status: role === "provider" ? "Pending approval" : "Active",
-    phoneVerified: true,
-    verifiedAt: new Date().toISOString(),
+    phoneVerified,
+    verifiedAt: phoneVerified ? new Date().toISOString() : null,
     passwordSet: Boolean(registration.password),
     passwordHash: hashPassword(registration.password)
   };
@@ -318,7 +319,7 @@ function createProviderFromRegistration(registration, user) {
     specialties: registration.specialties?.length ? registration.specialties : ["AC maintenance"],
     responseMins: 12,
     distanceKm: 4.5,
-    badges: ["Phone Verified", "Under Review"],
+    badges: [user.phoneVerified ? "Phone Verified" : "Phone Verification Pending", "Under Review"],
     priceLevel: registration.priceLevel || "Balanced",
     earningsMonth: 0,
     approved: false,
@@ -399,6 +400,45 @@ async function route(request, response) {
         return data;
       });
       return sendJson(response, 409, { error: "This phone or email is already registered. Please sign in instead." });
+    }
+
+    if (otpPaused()) {
+      let authToken = "";
+      const db = await updateDb((data) => {
+        const registration = {
+          ...body,
+          id: registrationId,
+          name,
+          businessName,
+          phone,
+          email,
+          password,
+          role,
+          deliveryChannel,
+          createdAt: new Date().toISOString()
+        };
+        const user = createUserFromRegistration(registration, { phoneVerified: false });
+        if (role === "provider") {
+          data.providers = [createProviderFromRegistration(registration, user), ...(data.providers || [])];
+        }
+        data.users = [user, ...(data.users || [])];
+        authToken = createSession(data, user);
+        data.authError = null;
+        addNotification(data, `${user.name} registered while phone verification is paused.`, "auth");
+        if (user.role === "provider") {
+          addNotification(data, `${user.name} is pending admin provider approval.`, "admin");
+        }
+        appendAudit(data, "auth.registered.otp_paused", { userId: user.id, role: user.role });
+        return data;
+      });
+      const sessionUser = findSessionUser(db, authToken);
+      return sendJson(response, 201, {
+        ...scopedDb(db, sessionUser),
+        authToken,
+        requiresOtp: false,
+        phoneVerificationPaused: true,
+        message: "Registration completed. Phone verification is currently paused and will be requested later."
+      });
     }
 
     const delivery = await deliverOtp({ channel: deliveryChannel, phone, code: otp });
@@ -507,6 +547,7 @@ async function route(request, response) {
   }
 
   if (request.method === "POST" && url.pathname === "/api/auth/resend-otp") {
+    if (otpPaused()) return sendJson(response, 409, { error: "OTP service is currently paused." });
     const body = await readBody(request);
     const otp = createOtpCode();
     let pendingForDelivery = null;
@@ -636,6 +677,7 @@ async function route(request, response) {
   }
 
   if (request.method === "POST" && url.pathname === "/api/auth/verify-otp") {
+    if (otpPaused()) return sendJson(response, 409, { error: "OTP service is currently paused." });
     const body = await readBody(request);
     let authToken = "";
     const db = await updateDb((data) => {

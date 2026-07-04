@@ -4,7 +4,7 @@ const OTP_SECRET = process.env.OTP_SECRET || "local-development-otp-secret-chang
 const OTP_TTL_MS = Number(process.env.OTP_TTL_MS || 5 * 60 * 1000);
 const OTP_RESEND_COOLDOWN_MS = Number(process.env.OTP_RESEND_COOLDOWN_MS || 60 * 1000);
 const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS || 5);
-const OTP_DELIVERY_MODE = process.env.OTP_DELIVERY_MODE || "mock";
+const OTP_DELIVERY_MODE = process.env.OTP_DELIVERY_MODE || "paused";
 
 export function createOtpCode() {
   return String(crypto.randomInt(0, 1000000)).padStart(6, "0");
@@ -39,6 +39,10 @@ export function otpPolicy() {
     maxAttempts: OTP_MAX_ATTEMPTS,
     deliveryMode: OTP_DELIVERY_MODE
   };
+}
+
+export function otpPaused() {
+  return OTP_DELIVERY_MODE === "paused";
 }
 
 function normalizeWhatsappNumber(phone) {
@@ -112,6 +116,13 @@ async function sendSmsWebhook({ phone, code }) {
 }
 
 export async function deliverOtp({ channel, phone, code }) {
+  if (OTP_DELIVERY_MODE === "paused") {
+    return {
+      provider: "paused",
+      status: "paused"
+    };
+  }
+
   if (OTP_DELIVERY_MODE === "whatsapp_cloud" && channel === "whatsapp") {
     return sendWhatsappCloud({ phone, code });
   }
