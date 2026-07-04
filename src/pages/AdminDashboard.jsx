@@ -1,28 +1,36 @@
 import { useState } from "react";
-import { CheckCircle2, Plus, Settings2, TrendingUp } from "lucide-react";
+import { CheckCircle2, CreditCard, Plus, Settings2, Star, TrendingUp } from "lucide-react";
 import Badge from "../components/Badge";
 import SectionHeader from "../components/SectionHeader";
 import StatCard from "../components/StatCard";
-import { adminStats, providers, serviceCategories, servicePerformance } from "../data/mockData";
 import { useLanguage } from "../i18n/LanguageContext";
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ users = [], providers = [], requests = [], reviews = [], payments = [], categories = [], onApproveProvider, onAddCategory }) {
   const { locationName, providerType, serviceName, t } = useLanguage();
-  const [providerApprovals, setProviderApprovals] = useState(() =>
-    Object.fromEntries(providers.map((provider) => [provider.id, provider.approved]))
-  );
-  const [categories, setCategories] = useState(serviceCategories.map((service) => service.name));
   const [newCategory, setNewCategory] = useState("");
-
-  function approveProvider(id) {
-    setProviderApprovals((current) => ({ ...current, [id]: true }));
-  }
+  const completedJobs = requests.filter((request) => request.status === "Completed").length;
+  const activeRequests = requests.filter((request) => ["Matching", "Payment pending", "Active"].includes(request.status)).length;
+  const revenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const completedPayments = payments.filter((payment) => ["Ready for payout", "Escrow secured"].includes(payment.status)).length;
+  const completionRate = requests.length ? Math.round((completedJobs / requests.length) * 100) : 0;
+  const providerApprovalRate = providers.length ? Math.round((providers.filter((provider) => provider.approved).length / providers.length) * 100) : 0;
+  const averageReview = reviews.length
+    ? (reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
+    : "N/A";
+  const adminStats = [
+    { label: "Total users", value: users.length, trend: "registered accounts", icon: CheckCircle2 },
+    { label: "Total providers", value: providers.length, trend: `${providers.filter((provider) => provider.approved).length} approved`, icon: Settings2 },
+    { label: "Active requests", value: activeRequests, trend: "live queue", icon: TrendingUp },
+    { label: "Completed jobs", value: completedJobs, trend: `${requests.length} total`, icon: CheckCircle2 },
+    { label: "Revenue estimate", value: `${revenue} OMR`, trend: "accepted offers", icon: CreditCard },
+    { label: "Average review", value: averageReview, trend: `${reviews.length} reviews`, icon: Star }
+  ];
 
   function addCategory(event) {
     event.preventDefault();
     const trimmed = newCategory.trim();
     if (!trimmed) return;
-    setCategories((current) => [...current, trimmed]);
+    onAddCategory?.(trimmed);
     setNewCategory("");
   }
 
@@ -47,8 +55,11 @@ export default function AdminDashboard() {
             <h2 className="font-display text-3xl font-bold">{t("admin.approval")}</h2>
           </div>
           <div className="grid gap-4">
+            {!providers.length && (
+              <p className="surface-muted rounded-[1.7rem] p-4 text-sm font-bold text-ink/55">No provider applications yet.</p>
+            )}
             {providers.map((provider) => {
-              const approved = providerApprovals[provider.id];
+              const approved = provider.approved;
               return (
                 <div key={provider.id} className="surface-muted rounded-[1.7rem] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -61,7 +72,7 @@ export default function AdminDashboard() {
                     <Badge tone={approved ? "Completed" : "Pending"}>{approved ? "Approved" : "Pending"}</Badge>
                   </div>
                   {!approved && (
-                    <button className="btn-primary mt-4" onClick={() => approveProvider(provider.id)}>
+                    <button className="btn-primary mt-4" onClick={() => onApproveProvider?.(provider.id)}>
                       {t("admin.approve")}
                     </button>
                   )}
@@ -89,6 +100,7 @@ export default function AdminDashboard() {
               </button>
             </form>
             <div className="mt-5 flex flex-wrap gap-2">
+              {!categories.length && <span className="text-sm font-bold text-white/55">No categories yet.</span>}
               {categories.map((category) => (
                 <span key={category} className="rounded-full bg-white/10 px-3 py-2 text-xs font-extrabold text-white/80">
                   {serviceName(category)}
@@ -101,10 +113,10 @@ export default function AdminDashboard() {
             <h2 className="font-display text-3xl font-bold">{t("admin.simpleStats")}</h2>
             <div className="mt-5 space-y-4">
               {[
-                [t("admin.completionRate"), "83%", "completion"],
-                [t("admin.providerAcceptance"), "68%", "acceptance"],
-                [t("admin.averageReview"), "4.7/5", "review"],
-                [t("admin.emergencySla"), "22 min", "sla"]
+                [t("admin.completionRate"), `${completionRate}%`, "completion"],
+                [t("admin.providerAcceptance"), `${providerApprovalRate}%`, "acceptance"],
+                [t("admin.averageReview"), averageReview === "N/A" ? "N/A" : `${averageReview}/5`, "review"],
+                ["Payments ready", completedPayments, "payments"]
               ].map(([label, value, key]) => (
                 <div key={label}>
                   <div className="mb-2 flex justify-between text-sm font-extrabold">
@@ -112,7 +124,7 @@ export default function AdminDashboard() {
                     <span className="text-lagoon">{value}</span>
                   </div>
                   <div className="h-3 rounded-full bg-mist">
-                    <div className="h-3 rounded-full bg-lagoon" style={{ width: key === "sla" ? "72%" : value.replace("%", "") }} />
+                    <div className="h-3 rounded-full bg-lagoon" style={{ width: typeof value === "string" && value.endsWith("%") ? value : key === "review" && averageReview !== "N/A" ? `${Number(averageReview) * 20}%` : `${Math.min(100, Number(value || 0))}%` }} />
                   </div>
                 </div>
               ))}
@@ -127,22 +139,66 @@ export default function AdminDashboard() {
           <h2 className="font-display text-3xl font-bold">Service category performance</h2>
         </div>
         <div className="grid gap-4 lg:grid-cols-4">
-          {servicePerformance.map((item) => (
-            <article key={item.name} className="surface-muted rounded-[1.8rem] p-5">
-              <p className="font-black">{serviceName(item.name)}</p>
+          {categories.map((category) => {
+            const categoryRequests = requests.filter((request) => request.serviceType === category);
+            const categoryReviews = reviews.filter((review) => categoryRequests.some((request) => request.id === review.requestId));
+            const categoryPayments = payments.filter((payment) => categoryRequests.some((request) => request.id === payment.requestId));
+            const satisfaction = categoryReviews.length
+              ? Math.round((categoryReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / categoryReviews.length) * 20)
+              : 0;
+            const categoryRevenue = categoryPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+            return (
+            <article key={category} className="surface-muted rounded-[1.8rem] p-5">
+              <p className="font-black">{serviceName(category)}</p>
               <div className="mt-4 space-y-3 text-sm font-bold text-ink/65">
-                <div className="flex justify-between"><span>Requests</span><span>{item.requests}</span></div>
-                <div className="flex justify-between"><span>Revenue</span><span>{item.revenue} OMR</span></div>
+                <div className="flex justify-between"><span>Requests</span><span>{categoryRequests.length}</span></div>
+                <div className="flex justify-between"><span>Revenue</span><span>{categoryRevenue} OMR</span></div>
                 <div>
-                  <div className="mb-2 flex justify-between"><span>Satisfaction</span><span>{item.satisfaction}%</span></div>
+                  <div className="mb-2 flex justify-between"><span>Satisfaction</span><span>{categoryReviews.length ? `${satisfaction}%` : "N/A"}</span></div>
                   <div className="h-2 rounded-full bg-white">
-                    <div className="h-2 rounded-full bg-lagoon" style={{ width: `${item.satisfaction}%` }} />
+                    <div className="h-2 rounded-full bg-lagoon" style={{ width: `${satisfaction}%` }} />
                   </div>
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
+      </section>
+
+      <section className="mt-8 grid gap-6 lg:grid-cols-2">
+        <article className="surface-card rounded-[2.4rem] p-6 shadow-card">
+          <h2 className="font-display text-3xl font-bold">Recent requests</h2>
+          <div className="mt-5 grid gap-3">
+            {!requests.length && <p className="surface-muted rounded-2xl p-4 text-sm font-bold text-ink/55">No service requests yet.</p>}
+            {requests.slice(0, 5).map((request) => (
+              <div key={request.id} className="surface-muted rounded-2xl p-4">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <p className="font-black">{request.id} - {serviceName(request.serviceType)}</p>
+                  <Badge tone={request.status}>{request.status}</Badge>
+                </div>
+                <p className="mt-1 text-sm font-bold text-ink/55">{request.customer || "Customer"} - {locationName(request.location)}</p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="surface-card rounded-[2.4rem] p-6 shadow-card">
+          <h2 className="font-display text-3xl font-bold">Payments and reviews</h2>
+          <div className="mt-5 grid gap-3">
+            {payments.slice(0, 4).map((payment) => (
+              <div key={payment.id} className="surface-muted rounded-2xl p-4 text-sm font-bold text-ink/65">
+                {payment.id}: {payment.amount} OMR - {payment.status}
+              </div>
+            ))}
+            {!payments.length && <p className="surface-muted rounded-2xl p-4 text-sm font-bold text-ink/55">No payment records yet.</p>}
+            {reviews.slice(0, 2).map((review) => (
+              <div key={`${review.requestId}-${review.provider}`} className="surface-muted rounded-2xl p-4 text-sm font-bold text-ink/65">
+                Review {review.rating}/5 for {review.provider}: {review.text}
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
     </div>
   );

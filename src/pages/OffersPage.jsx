@@ -5,9 +5,20 @@ import SectionHeader from "../components/SectionHeader";
 import { useLanguage } from "../i18n/LanguageContext";
 
 export default function OffersPage({ request, offers, costEstimate, onAccept }) {
-  const { locationName, serviceName, t } = useLanguage();
+  const { isArabic, locationName, serviceName, t } = useLanguage();
   const recommended = [...offers].sort((a, b) => b.matchingScore - a.matchingScore)[0];
   const others = offers.filter((offer) => offer.id !== recommended?.id);
+  const copy = {
+    recommended: isArabic ? "المزود المقترح" : "Recommended provider",
+    compare: isArabic ? "قارن عروض المزودين" : "Compare provider bids",
+    price: isArabic ? "السعر" : "Price",
+    rating: isArabic ? "التقييم" : "Rating",
+    arrival: isArabic ? "وقت الوصول" : "Arrival time",
+    score: isArabic ? "درجة المطابقة" : "Matching score",
+    empty: isArabic
+      ? "لا توجد عروض من المزودين حتى الآن. ستظهر الردود هنا عند وصولها."
+      : "No provider offers yet. We will show responses here as soon as matching providers reply."
+  };
 
   return (
     <div>
@@ -29,22 +40,27 @@ export default function OffersPage({ request, offers, costEstimate, onAccept }) 
         <CostEstimateCard estimate={costEstimate} request={request} />
         {recommended && (
           <div>
-            <p className="mb-3 text-sm font-extrabold uppercase tracking-[0.22em] text-lagoon">Recommended Provider</p>
+            <p className="mb-3 text-sm font-extrabold uppercase tracking-[0.22em] text-lagoon">{copy.recommended}</p>
             <OfferCard offer={recommended} onAccept={onAccept} recommended />
           </div>
         )}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-3xl font-bold">Compare provider bids</h2>
+        <h2 className="font-display text-3xl font-bold">{copy.compare}</h2>
         <div className="flex flex-wrap gap-2 text-xs font-black text-ink/55">
-          <span className="surface-card rounded-full px-3 py-2">Price</span>
-          <span className="surface-card rounded-full px-3 py-2">Rating</span>
-          <span className="surface-card rounded-full px-3 py-2">Arrival time</span>
-          <span className="surface-card rounded-full px-3 py-2">Matching score</span>
+          <span className="surface-card rounded-full px-3 py-2">{copy.price}</span>
+          <span className="surface-card rounded-full px-3 py-2">{copy.rating}</span>
+          <span className="surface-card rounded-full px-3 py-2">{copy.arrival}</span>
+          <span className="surface-card rounded-full px-3 py-2">{copy.score}</span>
         </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
+        {offers.length === 0 && (
+          <div className="surface-card rounded-[2rem] p-6 text-sm font-bold text-ink/60 shadow-card lg:col-span-2">
+            {copy.empty}
+          </div>
+        )}
         {others.map((offer) => (
           <OfferCard key={offer.id} offer={offer} onAccept={onAccept} />
         ))}

@@ -1,0 +1,14 @@
+{
+  "name": "slow-market",
+  "description": "Thin supply test: fewer providers respond, useful for testing empty and waiting states.",
+  "matching": {
+    "maxOffers": 1,
+    "responseRate": 0.45,
+    "priceAdjustment": 3
+  },
+  "tracking": {
+    "advanceActiveJobs": true,
+    "stepIncrement": 1,
+    "completeAtStep": 5
+  }
+}

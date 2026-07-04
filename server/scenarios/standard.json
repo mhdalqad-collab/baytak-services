@@ -1,0 +1,14 @@
+{
+  "name": "standard",
+  "description": "Healthy marketplace: most matching requests receive up to three provider offers, and active jobs move one tracking step per tick.",
+  "matching": {
+    "maxOffers": 3,
+    "responseRate": 1,
+    "priceAdjustment": 0
+  },
+  "tracking": {
+    "advanceActiveJobs": true,
+    "stepIncrement": 1,
+    "completeAtStep": 5
+  }
+}

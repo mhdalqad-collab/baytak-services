@@ -1,13 +1,3 @@
-export function createRequestId() {
-  return `REQ-${Math.floor(1100 + Math.random() * 800)}`;
-}
-
-export function priceForUrgency(urgency) {
-  if (urgency === "Emergency") return 42;
-  if (urgency === "Urgent") return 30;
-  return 20;
-}
-
 const serviceBaseRanges = {
   "Electrical repair": [18, 34],
   Plumbing: [16, 30],
@@ -19,6 +9,10 @@ const serviceBaseRanges = {
   "Pest control": [22, 44],
   "Emergency repair": [35, 70]
 };
+
+export function createRequestId() {
+  return `REQ-${Math.floor(1100 + Math.random() * 8000)}`;
+}
 
 export function estimateCost(request) {
   const [baseMin, baseMax] = serviceBaseRanges[request?.serviceType] || [18, 36];
@@ -51,14 +45,21 @@ export function detectIssueFromPhoto(photoName = "", serviceType = "AC maintenan
   return { issue: "General maintenance issue", confidence: 78, suggestedService: serviceType };
 }
 
-export function generateOffers(request, providers) {
+export function generateProviderOffers(request, providers, options = {}) {
   const estimate = estimateCost(request);
   const base = Math.round((estimate.min + estimate.max) / 2);
+  const maxOffers = Number(options.maxOffers || 4);
+  const responseRate = Number(options.responseRate ?? 1);
+  const priceAdjustment = Number(options.priceAdjustment || 0);
+
   return providers
     .filter((provider) => provider.approved)
-    .slice(0, 4)
+    .filter((provider) => provider.specialties.includes(request.serviceType) || request.urgency === "Emergency")
+    .filter((provider, index) => responseRate >= 1 || ((provider.id.length + request.id.length + index) % 100) / 100 <= responseRate)
+    .slice(0, maxOffers)
     .map((provider, index) => ({
-      id: `OFF-${provider.id}`,
+      id: `OFF-${request.id}-${provider.id}`,
+      requestId: request.id,
       providerId: provider.id,
       providerName: provider.name,
       providerType: provider.type,
@@ -69,7 +70,7 @@ export function generateOffers(request, providers) {
       matchingScore: Math.min(
         99,
         78 +
-          (provider.specialties.includes(request?.serviceType) ? 9 : 0) +
+          (provider.specialties.includes(request.serviceType) ? 9 : 0) +
           (provider.rating >= 4.8 ? 5 : 2) +
           (provider.distanceKm <= 3.5 ? 4 : 1) -
           index
@@ -78,27 +79,14 @@ export function generateOffers(request, providers) {
         provider.distanceKm <= 3.5 ? "Near customer location" : "Within service area",
         provider.rating >= 4.8 ? "High rating" : "Strong rating",
         provider.responseMins <= 9 ? "Available now" : "Reliable response",
-        provider.specialties.includes(request?.serviceType) ? "Specialized in selected service" : "Can handle related service",
+        provider.specialties.includes(request.serviceType) ? "Specialized in selected service" : "Can handle related service",
         provider.priceLevel === "Value" ? "Good price" : "Trusted service quality"
       ],
-      estimatedPrice: Math.max(12, base + index * 3 + (provider.priceLevel === "Premium" ? 3 : provider.priceLevel === "Value" ? -4 : 0)),
-      arrivalTime: `${Math.max(5, provider.responseMins - (request?.urgency === "Emergency" ? 3 : 0))}-${provider.responseMins + index * 4 + 7} min`,
-      serviceType: request?.serviceType,
-      isEmergency: request?.serviceType === "Emergency repair",
-      description:
-        request?.serviceType === "Emergency repair"
-          ? "Rapid dispatch team with diagnostic visit, urgent repair support, and safety check."
-          : `Includes inspection, labor estimate, and service support for ${request?.serviceType?.toLowerCase() || "home maintenance"}.`
+      estimatedPrice: Math.max(12, base + index * 3 + (provider.priceLevel === "Premium" ? 3 : provider.priceLevel === "Value" ? -4 : 0) + priceAdjustment),
+      arrivalTime: `${Math.max(5, provider.responseMins - (request.urgency === "Emergency" ? 3 : 0))}-${provider.responseMins + index * 4 + 7} min`,
+      serviceType: request.serviceType,
+      status: "Available",
+      isEmergency: request.serviceType === "Emergency repair",
+      createdAt: new Date().toISOString()
     }));
-}
-
-export function nextProviderStatuses(step) {
-  const frames = [
-    ["Available", "Available", "Busy", "Available", "Pending"],
-    ["Accepted", "Available", "Busy", "Available", "Pending"],
-    ["Accepted", "Rejected", "Accepted", "Available", "Busy"],
-    ["Accepted", "Rejected", "Accepted", "Accepted", "Rejected"]
-  ];
-
-  return frames[Math.min(step, frames.length - 1)];
 }

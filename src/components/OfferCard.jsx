@@ -2,7 +2,11 @@ import { BadgeCheck, Clock, Sparkles, Star, Wrench } from "lucide-react";
 import { useLanguage } from "../i18n/LanguageContext";
 
 export default function OfferCard({ offer, onAccept, recommended = false }) {
-  const { providerType, serviceName, t } = useLanguage();
+  const { isArabic, providerType, serviceName, t } = useLanguage();
+  const copy = {
+    recommended: isArabic ? "المزود المقترح" : "Recommended provider",
+    match: isArabic ? "مطابقة" : "match"
+  };
   const description = offer.isEmergency
     ? t("offers.emergencyDescription")
     : t("offers.cardDescription", { service: serviceName(offer.serviceType || "home maintenance").toLowerCase() });
@@ -14,14 +18,14 @@ export default function OfferCard({ offer, onAccept, recommended = false }) {
           {recommended && (
             <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-lagoon px-3 py-1 text-xs font-black text-white">
               <Sparkles size={14} />
-              Recommended Provider
+              {copy.recommended}
             </span>
           )}
           <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-lagoon">{providerType(offer.providerType)}</p>
           <h3 className="mt-2 text-xl font-black text-ink">{offer.providerName}</h3>
         </div>
         <div className="premium-panel rounded-3xl px-4 py-3 text-right">
-          <p className="text-xs font-bold text-white/60">{offer.matchingScore}% match</p>
+          <p className="text-xs font-bold text-white/60">{offer.matchingScore}% {copy.match}</p>
           <p className="text-2xl font-black">{offer.estimatedPrice} {t("common.omr")}</p>
         </div>
       </div>

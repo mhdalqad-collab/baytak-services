@@ -1,6 +1,6 @@
 import { Navigation, Home, MapPin } from "lucide-react";
 
-export default function MapSimulation({ request, offer, currentStep = 0 }) {
+export default function DispatchMap({ request, offer, currentStep = 0 }) {
   const progress = Math.min(88, 18 + currentStep * 14);
   const eta = currentStep >= 5 ? "Arrived" : offer?.arrivalTime || "8-15 min";
   const distance = offer?.distanceKm || 3.1;

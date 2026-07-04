@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: baytak-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: baytak
+      POSTGRES_USER: baytak_user
+      POSTGRES_PASSWORD: baytak_password_change_me
+    ports:
+      - "55432:5432"
+    volumes:
+      - baytak_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baytak_user -d baytak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  baytak_postgres_data:

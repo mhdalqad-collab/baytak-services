@@ -1,33 +1,27 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, RadioTower } from "lucide-react";
 import ProviderStatusCard from "../components/ProviderStatusCard";
 import CostEstimateCard from "../components/CostEstimateCard";
 import SectionHeader from "../components/SectionHeader";
-import { providers } from "../data/mockData";
 import { useLanguage } from "../i18n/LanguageContext";
-import { nextProviderStatuses } from "../utils/simulation";
 
-export default function MatchingPage({ request, costEstimate }) {
+export default function MatchingPage({ request, costEstimate, providers = [], offers = [], providerDecisions = {} }) {
   const { locationName, serviceName, statusName, t } = useLanguage();
-  const [step, setStep] = useState(0);
+  const ready = offers.length > 0;
+  const acceptedCount = offers.length;
+  const waitingDescription = "Waiting for provider responses. This page will update when matching providers send offers.";
 
-  useEffect(() => {
-    setStep(0);
-    const timers = [900, 1900, 3100].map((delay, index) => setTimeout(() => setStep(index + 1), delay));
-    return () => timers.forEach(clearTimeout);
-  }, [request?.id]);
-
-  const statuses = nextProviderStatuses(step);
-  const acceptedCount = statuses.filter((status) => status === "Accepted").length;
-  const ready = step >= 3;
+  function providerStatus(providerId) {
+    if (offers.some((offer) => offer.providerId === providerId)) return "Accepted";
+    return providerDecisions[`${request?.id}:${providerId}`] || "Pending";
+  }
 
   return (
     <div>
       <SectionHeader
         kicker={t("matching.kicker")}
         title={t("matching.title")}
-        description={t("matching.description")}
+        description={ready ? `${offers.length} provider offer${offers.length === 1 ? "" : "s"} ready for review.` : waitingDescription}
         action={
           <Link to="/offers" className={`btn-primary ${ready ? "" : "pointer-events-none opacity-45"}`}>
             {t("matching.viewOffers")}
@@ -62,8 +56,8 @@ export default function MatchingPage({ request, costEstimate }) {
         </aside>
 
         <section className="grid gap-4 sm:grid-cols-2">
-          {providers.map((provider, index) => (
-            <ProviderStatusCard key={provider.id} provider={provider} status={statuses[index]} />
+          {providers.map((provider) => (
+            <ProviderStatusCard key={provider.id} provider={provider} status={providerStatus(provider.id)} />
           ))}
         </section>
       </div>
