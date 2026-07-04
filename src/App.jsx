@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { platformApi, setPlatformAuthToken } from "./api/platformApi";
 import AppShell from "./components/AppShell";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import AboutPage from "./pages/AboutPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AuthPage from "./pages/AuthPage";
@@ -260,6 +261,7 @@ export default function App() {
     <AppShell session={session} onSignOut={signOut} notifications={notifications} apiStatus={apiStatus}>
       <Routes>
         <Route path="/" element={<LandingPage session={session} requests={customerRequests} providers={providerList} apiStatus={apiStatus} />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<AuthPage users={users} session={session} onSignIn={signIn} onRegister={registerAccount} onVerifyOtp={verifyOtp} onResendOtp={resendOtp} categories={categories} />} />
         <Route
           path="/customer"

@@ -1,11 +1,12 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Bell, CreditCard, Home, LayoutDashboard, LogOut, Palette, Settings, ShieldCheck, Store, UserRound, Wrench, X } from "lucide-react";
+import { Bell, CreditCard, Home, Info, LayoutDashboard, LogOut, Palette, Settings, ShieldCheck, Store, UserRound, Wrench, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useTheme } from "../theme/ThemeContext";
 
 const navItems = [
   { to: "/", labelKey: "nav.home", icon: Home },
+  { to: "/about", labelKey: "nav.about", icon: Info },
   { to: "/customer", labelKey: "nav.customer", icon: LayoutDashboard, roles: ["customer", "admin"] },
   { to: "/provider", labelKey: "nav.provider", icon: Store, roles: ["provider", "admin"] },
   { to: "/admin", labelKey: "nav.admin", icon: ShieldCheck, roles: ["admin"] },
