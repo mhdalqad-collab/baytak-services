@@ -1,4 +1,4 @@
-import { ArrowDownToLine, BadgeCheck, BriefcaseBusiness, Globe2, Lightbulb, Mail, MapPin, Sparkles, UserRound } from "lucide-react";
+import { BadgeCheck, BriefcaseBusiness, Globe2, Lightbulb, Mail, MapPin, Phone, Sparkles, UserRound } from "lucide-react";
 import SectionHeader from "../components/SectionHeader";
 import { useLanguage } from "../i18n/LanguageContext";
 
@@ -9,16 +9,23 @@ const teamMembers = [
     locationKey: "about.mohammedLocation",
     bioKey: "about.mohammedBio",
     image: "/about/mohammed-al-qaderi.png",
-    resume: "/about/mohammed-al-qaderi-resume.pdf",
-    tags: ["Product vision", "Frontend prototype", "Marketplace operations"]
+    imagePosition: "object-[center_28%]",
+    phone: "+968 9191 8769",
+    phoneHref: "tel:+96891918769",
+    email: "mhd.alqad@gmail.com",
+    tags: ["CTO", "System builder", "Product architecture"]
   },
   {
-    name: "Future Co-Founder",
+    name: "Hussam Yehya",
     roleKey: "about.partnerRole",
     locationKey: "about.partnerLocation",
     bioKey: "about.partnerBio",
-    initials: "FC",
-    tags: ["Provider network", "Customer success", "Growth strategy"]
+    image: "/about/hussam-yehya.jpg",
+    imagePosition: "object-[center_42%]",
+    phone: "+968 9363 0500",
+    phoneHref: "tel:+96893630500",
+    email: "hussamkhatoon@hotmail.com",
+    tags: ["Growth strategy", "Marketing", "Partnerships"]
   }
 ];
 
@@ -72,14 +79,14 @@ export default function AboutPage() {
 
         <div className="grid gap-5 lg:grid-cols-2">
           {teamMembers.map((member) => (
-            <article key={member.name} className="surface-card group overflow-hidden rounded-[2.4rem] shadow-card">
-              <div className="grid gap-0 md:grid-cols-[0.9fr_1.1fr]">
-                <div className="relative min-h-[22rem] overflow-hidden bg-[linear-gradient(135deg,#0f172a,#1e3a8a)]">
+            <article key={member.name} className="surface-card group grid overflow-hidden rounded-[2.4rem] shadow-card">
+              <div className="grid h-full gap-0 md:grid-cols-[0.9fr_1.1fr]">
+                <div className="relative min-h-[22rem] overflow-hidden bg-[linear-gradient(135deg,#0f172a,#1e3a8a)] md:h-full">
                   {member.image ? (
                     <img
                       src={member.image}
                       alt={member.name}
-                      className="h-full min-h-[22rem] w-full object-cover object-[center_28%] transition duration-500 group-hover:scale-105"
+                      className={`h-full min-h-[22rem] w-full object-cover transition duration-500 group-hover:scale-105 ${member.imagePosition}`}
                     />
                   ) : (
                     <div className="flex h-full min-h-[22rem] items-center justify-center">
@@ -94,7 +101,7 @@ export default function AboutPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col p-6">
+                <div className="flex min-h-[22rem] flex-col p-6">
                   <div className="flex flex-wrap gap-2">
                     {member.tags.map((tag) => (
                       <span key={tag} className="theme-chip rounded-full px-3 py-1 text-xs font-extrabold">
@@ -116,21 +123,18 @@ export default function AboutPage() {
                     </span>
                   </div>
 
-                  <div className="mt-auto flex flex-col gap-3 pt-7 sm:flex-row">
-                    {member.resume ? (
-                      <a href={member.resume} target="_blank" rel="noreferrer" className="btn-primary">
-                        {t("about.viewResume")}
-                        <ArrowDownToLine size={17} />
-                      </a>
-                    ) : (
-                      <span className="btn-secondary cursor-default opacity-70">
-                        {t("about.profileComingSoon")}
-                      </span>
-                    )}
-                    <a href="mailto:hello@baytak.services" className="btn-secondary">
-                      {t("about.contact")}
-                      <Mail size={17} />
+                  <div className="mt-auto grid gap-3 pt-7 sm:grid-cols-2">
+                    <a href={member.phoneHref} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-lagoon px-4 py-3 text-sm font-extrabold text-white shadow-card transition hover:-translate-y-0.5 hover:bg-ink">
+                      <Phone size={16} />
+                      {t("about.call")}
                     </a>
+                    <a href={`mailto:${member.email}`} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-ink/10 bg-mist px-4 py-3 text-sm font-extrabold text-ink transition hover:-translate-y-0.5 hover:border-lagoon/30 hover:text-lagoon">
+                      <Mail size={16} />
+                      {t("about.email")}
+                    </a>
+                    <p className="text-xs font-bold leading-6 text-ink/45 sm:col-span-2">
+                      {member.phone} · {member.email}
+                    </p>
                   </div>
                 </div>
               </div>
