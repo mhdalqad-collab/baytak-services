@@ -1,7 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import { addNotification, appendAudit, databaseInfo, readDb, resetDb, updateDb } from "./db.js";
-import { createRequestId, detectIssueFromPhoto, generateProviderOffers } from "./marketplace.js";
+import { createRequestId, detectIssueFromPhoto } from "./marketplace.js";
 import { canResend, createOtpCode, deliverOtp, hashOtp, otpExpiresAt, otpPaused, otpPolicy, verifyOtpHash } from "./otpService.js";
 import { capturePayment as captureGatewayPayment, paymentReadiness } from "./paymentService.js";
 
@@ -17,7 +17,7 @@ function sendJson(response, status, body) {
   response.writeHead(status, {
     "Access-Control-Allow-Origin": CORS_ORIGIN,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Simulator-Key",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
@@ -197,7 +197,7 @@ function scopedDb(data, sessionUser) {
       offersByRequest: Object.fromEntries(Object.entries(data.offersByRequest || {}).filter(([requestId]) => allowedRequestIds.has(requestId))),
       payments: (data.payments || []).filter((payment) => payment.providerId === providerId),
       reviews: (data.reviews || []).filter((review) => providerId && review.providerId === providerId),
-      notifications: (data.notifications || []).filter((item) => ["provider", "auth", "external-test"].includes(item.type)),
+      notifications: (data.notifications || []).filter((item) => ["provider", "auth"].includes(item.type)),
       auditLog: []
     };
   }
@@ -253,12 +253,6 @@ function hasRole(user, roles) {
   return user && roles.includes(user.role);
 }
 
-function requireSimulator(request) {
-  const configuredKey = process.env.SIM_API_KEY;
-  if (!configuredKey) return true;
-  return request.headers["x-simulator-key"] === configuredKey;
-}
-
 function readinessReport() {
   const otpMode = process.env.OTP_DELIVERY_MODE || "paused";
   return {
@@ -279,10 +273,6 @@ function readinessReport() {
       fileStorage: {
         status: "held",
         ready: false
-      },
-      simulatorSecurity: {
-        status: process.env.SIM_API_KEY ? "configured" : "local-open",
-        ready: Boolean(process.env.SIM_API_KEY)
       }
     }
   };
@@ -355,15 +345,6 @@ async function route(request, response) {
     const db = await readDb();
     const sessionUser = findSessionUser(db, bearerToken(request));
     return sendJson(response, 200, scopedDb(db, sessionUser));
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/simulator/work") {
-    if (!requireSimulator(request)) return sendJson(response, 403, { error: "Simulator key is invalid." });
-    const db = await readDb();
-    return sendJson(response, 200, {
-      requests: db.requests || [],
-      offersByRequest: db.offersByRequest || {}
-    });
   }
 
   if (request.method === "POST" && url.pathname === "/api/reset") {
@@ -939,60 +920,6 @@ async function route(request, response) {
     });
     if (db.authError) return sendJson(response, 403, { error: db.authError });
     return sendJson(response, 201, scopedDb(db, currentUser));
-  }
-
-  const providerOffersMatch = url.pathname.match(/^\/api\/requests\/([^/]+)\/provider-offers$/);
-  if (request.method === "POST" && providerOffersMatch) {
-    if (!requireSimulator(request)) return sendJson(response, 403, { error: "Simulator key is invalid." });
-    const requestId = decodeURIComponent(providerOffersMatch[1]);
-    const body = await readBody(request);
-    const db = await updateDb((data) => {
-      const serviceRequest = data.requests.find((item) => item.id === requestId);
-      if (!serviceRequest || serviceRequest.status !== "Matching") return data;
-
-      const generatedOffers = generateProviderOffers(serviceRequest, data.providers, body);
-      const currentOffers = data.offersByRequest[requestId] || [];
-      const existingIds = new Set(currentOffers.map((offer) => offer.id));
-      const newOffers = generatedOffers.filter((offer) => !existingIds.has(offer.id));
-
-      data.offersByRequest[requestId] = [...currentOffers, ...newOffers];
-      for (const offer of newOffers) {
-        data.providerDecisions[`${requestId}:${offer.providerId}`] = "Accepted";
-      }
-
-      addNotification(data, `${newOffers.length} providers responded to ${requestId}.`, "external-test");
-      appendAudit(data, "external.provider_offers.generated", {
-        requestId,
-        scenario: body.scenario || "default",
-        offers: newOffers.length
-      });
-      return data;
-    });
-    return sendJson(response, 201, scopedDb(db, null));
-  }
-
-  const advanceRequestMatch = url.pathname.match(/^\/api\/requests\/([^/]+)\/advance$/);
-  if (request.method === "POST" && advanceRequestMatch) {
-    if (!requireSimulator(request)) return sendJson(response, 403, { error: "Simulator key is invalid." });
-    const requestId = decodeURIComponent(advanceRequestMatch[1]);
-    const body = await readBody(request);
-    const db = await updateDb((data) => {
-      const current = data.requests.find((item) => item.id === requestId);
-      if (!current) return data;
-      const nextStep = Math.min(5, Number(body.timelineStep ?? current.timelineStep ?? 1));
-      data.requests = data.requests.map((item) =>
-        item.id === requestId ? { ...item, timelineStep: nextStep, status: nextStep >= 5 ? "Completed" : item.status } : item
-      );
-      if (nextStep >= 5) {
-        data.payments = data.payments.map((item) =>
-          item.requestId === requestId ? { ...item, status: "Ready for payout" } : item
-        );
-      }
-      addNotification(data, `${requestId} moved to tracking step ${nextStep}.`, "external-test");
-      appendAudit(data, "external.request.advanced", { requestId, timelineStep: nextStep });
-      return data;
-    });
-    return sendJson(response, 200, scopedDb(db, null));
   }
 
   if (request.method === "POST" && url.pathname === "/api/providers") {

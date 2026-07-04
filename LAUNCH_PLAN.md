@@ -2,27 +2,28 @@
 
 ## Current platform status
 
-The demo has been upgraded from isolated mock screens into a persistent MVP frontend:
+The platform has been upgraded into a full-stack production-beta codebase:
 
 - Customer, provider, admin, payments, and onboarding workspaces.
-- Browser-persistent session, requests, provider list, offers, reviews, payments, categories, provider decisions, and notifications.
-- Customer service request flow with AI-style issue detection, matching, provider offers, offer acceptance, payment status, live tracking, completion, and review.
+- PostgreSQL-backed users, requests, providers, offers, reviews, payments, categories, provider decisions, and notifications.
+- Customer service request flow with issue detection, provider responses, offer acceptance, payment status, tracking, completion, and review.
 - Provider dashboard connected to real customer requests, active jobs, completed jobs, and provider onboarding.
 - Admin dashboard with dynamic request, provider, review, revenue, category, and approval controls.
-- Payment ledger with escrow, platform fee, and payout status modeling.
+- Payment gateway adapter is prepared and held until bank credentials are available.
+- OTP service is paused until the official provider is activated.
 
-This is still frontend-only. To launch commercially, the next step is replacing browser storage with a secure backend, database, file storage, payment provider, and notification services.
+Before public launch, the remaining external work is activating OTP, bank payments, managed file storage, production hosting, monitoring, backups, and legal policies.
 
 ## Three-week launch roadmap
 
 ### Week 1: Production foundation
 
-- Add backend API and database for users, roles, providers, requests, offers, payments, reviews, categories, notifications, and audit logs.
-- Implement secure authentication with phone/email OTP and role-based authorization.
+- Harden backend API and database for users, roles, providers, requests, offers, payments, reviews, categories, notifications, and audit logs.
+- Activate secure phone/email OTP and role-based authorization.
 - Add provider application document upload and admin review workflow.
 - Add real file storage for request photos and provider compliance documents.
 - Add request status history so every operational event is auditable.
-- Deploy staging environment with seeded Oman marketplace data.
+- Deploy staging environment with clean production data and real admin setup.
 
 ### Week 2: Marketplace operations
 
