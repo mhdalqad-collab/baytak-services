@@ -16,7 +16,7 @@ const rateBuckets = new Map();
 function sendJson(response, status, body) {
   response.writeHead(status, {
     "Access-Control-Allow-Origin": CORS_ORIGIN,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",

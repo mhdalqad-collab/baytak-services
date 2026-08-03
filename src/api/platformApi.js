@@ -23,14 +23,19 @@ export function setPlatformAuthToken(token) {
 
 async function request(path, options = {}) {
   const token = authToken();
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {})
-    },
-    ...options
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+      },
+      ...options
+    });
+  } catch {
+    throw new Error("Cannot reach Baytak API. Make sure the backend is running and try again.");
+  }
 
   if (!response.ok) {
     const text = await response.text();
