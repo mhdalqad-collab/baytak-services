@@ -189,7 +189,10 @@ export default function App() {
       setPlatformAuthToken("");
       setSession(null);
       navigate("/login");
-    }).catch(() => addNotification(serviceUnavailableMessage("delete the account"), "system"));
+    }).catch((error) => {
+      addNotification(error.message || serviceUnavailableMessage("delete the account"), "system");
+      throw error;
+    });
   }
 
   async function submitRequest(formData) {

@@ -6,6 +6,8 @@ import { useLanguage } from "../i18n/LanguageContext";
 export default function AccountSettingsPage({ session, provider, onSignOut, onDeleteAccount }) {
   const { isArabic } = useLanguage();
   const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const canDelete = confirmText === "DELETE";
   const copy = {
     kicker: isArabic ? "إعدادات الحساب" : "Account settings",
@@ -31,8 +33,22 @@ export default function AccountSettingsPage({ session, provider, onSignOut, onDe
       ? "سيتم حذف حساب المستخدم. يتم حذف ملف المزود أيضاً. تبقى طلبات الخدمة السابقة كسجلات تشغيلية مع إخفاء هوية الحساب."
       : "This removes the user account. Provider profiles are removed too. Existing service requests are kept for operations records and anonymized.",
     confirm: isArabic ? "اكتب DELETE للتأكيد" : "Type DELETE to confirm",
-    deleteButton: isArabic ? "حذف حسابي" : "Delete my account"
+    deleteButton: isArabic ? "حذف حسابي" : "Delete my account",
+    deleting: isArabic ? "جاري الحذف..." : "Deleting...",
+    deleteFailed: isArabic ? "لم يتم حذف الحساب. حاول مرة أخرى." : "Account was not deleted. Please try again."
   };
+
+  async function handleDelete() {
+    if (!canDelete || isDeleting) return;
+    setDeleteError("");
+    setIsDeleting(true);
+    try {
+      await onDeleteAccount?.();
+    } catch (error) {
+      setDeleteError(error.message || copy.deleteFailed);
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <div>
@@ -88,9 +104,10 @@ export default function AccountSettingsPage({ session, provider, onSignOut, onDe
               {copy.confirm}
               <input className="input-field bg-white" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} />
             </label>
-            <button className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-extrabold text-white disabled:opacity-40" disabled={!canDelete} onClick={onDeleteAccount}>
+            {deleteError && <p className="mt-4 rounded-2xl bg-white p-3 text-sm font-extrabold text-red-700">{deleteError}</p>}
+            <button className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!canDelete || isDeleting} onClick={handleDelete}>
               <Trash2 size={17} />
-              {copy.deleteButton}
+              {isDeleting ? copy.deleting : copy.deleteButton}
             </button>
           </article>
         </section>

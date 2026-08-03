@@ -642,9 +642,29 @@ async function route(request, response) {
       data.sessions = (data.sessions || []).filter((session) => session.userId !== userId);
       if (user.providerId) {
         data.providers = data.providers.filter((provider) => provider.id !== user.providerId);
+        data.requests = data.requests.map((item) =>
+          item.providerId === user.providerId ? { ...item, provider: "Deleted provider", providerId: null } : item
+        );
+        data.payments = data.payments.map((item) =>
+          item.providerId === user.providerId ? { ...item, providerId: null, providerName: "Deleted provider" } : item
+        );
+        data.reviews = data.reviews.map((item) =>
+          item.providerId === user.providerId ? { ...item, providerId: null, provider: "Deleted provider" } : item
+        );
+        data.offersByRequest = Object.fromEntries(
+          Object.entries(data.offersByRequest || {}).map(([requestId, offers]) => [
+            requestId,
+            offers.map((offer) =>
+              offer.providerId === user.providerId ? { ...offer, providerId: null, providerName: "Deleted provider" } : offer
+            )
+          ])
+        );
+        data.providerDecisions = Object.fromEntries(
+          Object.entries(data.providerDecisions || {}).filter(([key]) => !key.endsWith(`:${user.providerId}`))
+        );
       }
       data.requests = data.requests.map((item) =>
-        item.customerId === userId ? { ...item, customer: "Deleted account", customerId: "deleted" } : item
+        item.customerId === userId ? { ...item, customer: "Deleted account", customerId: null } : item
       );
       if (data.session?.id === userId) data.session = null;
       data.authError = null;
@@ -654,7 +674,8 @@ async function route(request, response) {
     });
 
     if (db.authError) return sendJson(response, 404, { error: db.authError });
-    return sendJson(response, 200, scopedDb(db, currentUser.role === "admin" ? currentUser : null));
+    const responseUser = currentUser.id === userId ? null : currentUser.role === "admin" ? currentUser : null;
+    return sendJson(response, 200, scopedDb(db, responseUser));
   }
 
   if (request.method === "POST" && url.pathname === "/api/auth/verify-otp") {
