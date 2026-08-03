@@ -24,8 +24,8 @@ Baytak Services is a full-stack home maintenance marketplace for Oman. It includ
 ```bash
 npm install
 npm run postgres:up
-npm run db:init:postgres
-npm run api:prod-db
+npm run db:init
+npm run api
 npm run dev
 ```
 

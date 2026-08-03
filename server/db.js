@@ -1,26 +1,18 @@
-import { copyFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { seedData } from "./seed.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, "data");
-const dbPath = path.join(dataDir, "db.json");
-const storageClient = String(process.env.DB_CLIENT || (process.env.DATABASE_URL ? "postgres" : "json")).toLowerCase();
-const postgresEnabled = storageClient === "postgres";
-const productionMode = process.env.NODE_ENV === "production" || process.env.REQUIRE_PRODUCTION_DB === "true";
+const storageClient = String(process.env.DB_CLIENT || "postgres").toLowerCase();
 
 let updateQueue = Promise.resolve();
 let pool;
 let postgresReady;
 
-if (productionMode && !postgresEnabled) {
-  throw new Error("Production mode requires DB_CLIENT=postgres and DATABASE_URL. JSON storage is not allowed for production.");
+if (storageClient !== "postgres") {
+  throw new Error("Baytak requires PostgreSQL. Set DB_CLIENT=postgres and DATABASE_URL.");
 }
 
 function getPool() {
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required when DB_CLIENT=postgres.");
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required. Baytak does not support JSON file storage.");
   if (!pool) {
     pool = new pg.Pool({
       connectionString: process.env.DATABASE_URL,
@@ -63,38 +55,8 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function json(value, fallback) {
-  return JSON.stringify(value ?? fallback);
-}
-
-async function ensureJsonDb() {
-  await mkdir(dataDir, { recursive: true });
-  try {
-    await readFile(dbPath, "utf8");
-  } catch {
-    await writeJsonDb(cloneSeed());
-  }
-}
-
-async function readJsonDb() {
-  await ensureJsonDb();
-  const raw = await readFile(dbPath, "utf8");
-  try {
-    return normalizeDb(JSON.parse(raw));
-  } catch {
-    await backupCorruptDb();
-    await writeJsonDb(cloneSeed());
-    return cloneSeed();
-  }
-}
-
-async function writeJsonDb(data) {
-  await mkdir(dataDir, { recursive: true });
-  const normalized = normalizeDb(data);
-  const tempPath = `${dbPath}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
-  await rename(tempPath, dbPath);
-  return normalized;
+function json(value, defaultValue) {
+  return JSON.stringify(value ?? defaultValue);
 }
 
 async function ensurePostgresDb() {
@@ -596,7 +558,6 @@ async function writePostgresDb(client, data) {
 }
 
 async function writeDbToStorage(data) {
-  if (!postgresEnabled) return writeJsonDb(data);
   await ensurePostgresDb();
   const client = await getPool().connect();
   try {
@@ -614,7 +575,6 @@ async function writeDbToStorage(data) {
 }
 
 export async function readDb() {
-  if (!postgresEnabled) return readJsonDb();
   return readPostgresDb();
 }
 
@@ -624,12 +584,6 @@ export async function writeDb(data) {
 
 export async function updateDb(updater) {
   updateQueue = updateQueue.then(async () => {
-    if (!postgresEnabled) {
-      const current = await readJsonDb();
-      const next = await updater(current);
-      return writeJsonDb(next);
-    }
-
     await ensurePostgresDb();
     const client = await getPool().connect();
     try {
@@ -656,27 +610,15 @@ export async function resetDb() {
 
 export function databaseInfo() {
   return {
-    client: postgresEnabled ? "postgres" : "json",
-    productionReady: postgresEnabled,
-    relationalSchema: postgresEnabled,
-    jsonFallbackPath: postgresEnabled ? undefined : dbPath,
-    postgres: postgresEnabled
-      ? {
-          configured: Boolean(process.env.DATABASE_URL),
-          poolMax: Number(process.env.DB_POOL_MAX || 20),
-          ssl: process.env.DB_SSL === "true"
-        }
-      : undefined
+    client: "postgres",
+    productionReady: true,
+    relationalSchema: true,
+    postgres: {
+      configured: Boolean(process.env.DATABASE_URL),
+      poolMax: Number(process.env.DB_POOL_MAX || 20),
+      ssl: process.env.DB_SSL === "true"
+    }
   };
-}
-
-export async function backupCorruptDb() {
-  await mkdir(dataDir, { recursive: true });
-  try {
-    await copyFile(dbPath, `${dbPath}.corrupt-${Date.now()}`);
-  } catch {
-    // No existing file to back up.
-  }
 }
 
 export function appendAudit(data, action, payload = {}) {

@@ -1,6 +1,6 @@
 # Baytak Database Setup
 
-Baytak uses PostgreSQL for beta and production. The local JSON file is only a development fallback and is blocked when `NODE_ENV=production` or `REQUIRE_PRODUCTION_DB=true`.
+Baytak uses PostgreSQL only. JSON file storage is not supported.
 
 ## Production Settings
 
@@ -28,7 +28,7 @@ The included Docker PostgreSQL service listens on `127.0.0.1:55432` to avoid con
 ## Initialize
 
 ```powershell
-npm run db:init:postgres
+npm run db:init
 ```
 
 This creates the relational PostgreSQL tables and seeds the initial data if the database is empty.
@@ -36,7 +36,7 @@ This creates the relational PostgreSQL tables and seeds the initial data if the 
 ## Run With PostgreSQL
 
 ```powershell
-npm run api:prod-db
+npm run api
 npm run dev
 ```
 
@@ -88,7 +88,7 @@ $env:REQUIRE_PRODUCTION_DB="true"
 npm run test:integrity
 ```
 
-That command fails if the API is still using the JSON fallback.
+That command fails if PostgreSQL is not configured or reachable.
 
 ## External Services Still Needed
 
